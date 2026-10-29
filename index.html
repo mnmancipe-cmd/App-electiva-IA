@@ -102,15 +102,11 @@
         </button>
       </nav>
 
-      <!-- Botón de Acción Directo -->
-      <div class="hidden sm:flex items-center">
-        <button 
-          onclick="cambiarPestana('calculadora'); window.scrollTo({top: 0, behavior: 'smooth'});" 
-          class="bg-primary hover:opacity-90 active:scale-95 text-on-primary font-semibold text-xs sm:text-sm px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition"
-        >
-          <span class="material-symbols-outlined text-base">calculate</span>
-          <span>Nueva Dosis</span>
-        </button>
+      <!-- Badge de Estado de Firebase Firestore -->
+      <div class="flex items-center gap-2">
+        <span id="firebase-status-badge" class="px-3 py-1 bg-surface-container text-on-surface-variant border border-outline-variant font-semibold text-xs rounded-full flex items-center gap-1.5 shadow-sm">
+          ⏳ Conectando...
+        </span>
       </div>
 
     </div>
@@ -252,7 +248,7 @@
                   class="w-full bg-surface-container-lowest border border-outline rounded-lg py-2.5 px-3.5 text-sm sm:text-base font-medium text-on-surface focus:ring-2 focus:ring-primary focus:border-primary transition-all cursor-pointer" 
                   id="drug-select"
                 >
-                  <!-- Opciones cargadas dinámicamente desde medicamentos.js -->
+                  <!-- Opciones sincronizadas desde Firestore / medicamentos.js -->
                 </select>
               </div>
 
@@ -316,8 +312,8 @@
             <!-- Botones de Acción -->
             <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant">
               <span class="flex items-center gap-1 text-tertiary font-medium">
-                <span class="material-symbols-outlined text-sm">lock</span>
-                <span>Cálculo local y privado (sin enviar datos de pacientes)</span>
+                <span class="material-symbols-outlined text-sm">cloud_done</span>
+                <span>Datos sincronizados en la nube (Firestore)</span>
               </span>
               <button class="hover:text-primary transition-colors underline font-medium cursor-pointer" onclick="resetForm()" type="button">
                 Restablecer
@@ -420,7 +416,6 @@
               
               <!-- Barra gráfica simuladora de jeringa -->
               <div class="relative w-full h-7 bg-surface-container-high rounded-lg border border-outline flex items-center px-1 overflow-hidden">
-                <!-- Ticks de medición -->
                 <div class="absolute inset-0 flex justify-between items-center px-3 pointer-events-none opacity-40">
                   <span class="h-4 w-px bg-on-surface"></span>
                   <span class="h-2 w-px bg-on-surface"></span>
@@ -432,7 +427,6 @@
                   <span class="h-2 w-px bg-on-surface"></span>
                   <span class="h-4 w-px bg-on-surface"></span>
                 </div>
-                <!-- Barra de fluido -->
                 <div id="syringeFluidBar" class="h-5 bg-secondary-container rounded transition-all duration-300 flex items-center justify-end pr-2 text-on-secondary-container font-bold text-xs" style="width: 50%;">
                   <span id="syringeFillText">-- ml</span>
                 </div>
@@ -446,7 +440,7 @@
               </div>
             </div>
 
-            <!-- DESGLOSE MATEMÁTICO PASO A PASO (TRANSPARENTE PARA EL APRENDIZAJE) -->
+            <!-- DESGLOSE MATEMÁTICO PASO A PASO -->
             <div class="bg-surface-container-low border border-outline-variant rounded-xl p-4">
               <h3 class="font-semibold text-xs sm:text-sm text-on-surface flex items-center gap-1.5 mb-2.5">
                 <span class="material-symbols-outlined text-primary text-base">account_tree</span>
@@ -471,7 +465,7 @@
 
       </div>
 
-      <!-- SECCIÓN PEDAGÓGICA: REGLAS DE ORO EN ENFERMERÍA PEDIÁTRICA -->
+      <!-- REGLAS DE ORO EN ENFERMERÍA PEDIÁTRICA -->
       <section class="mt-4 pt-6 border-t border-outline-variant">
         <h2 class="text-lg font-heading font-bold text-on-surface mb-3 flex items-center gap-2">
           <span class="material-symbols-outlined text-primary">checklist</span>
@@ -511,7 +505,7 @@
             Vademécum Pediátrico de Bolsillo
           </h1>
           <p class="text-xs sm:text-sm text-on-surface-variant mt-0.5">
-            Consulta la dosis de referencia, uso clínico y fuente oficial de los medicamentos registrados.
+            Consulta la dosis de referencia, uso clínico y fuente oficial de los medicamentos registrados en Firestore.
           </p>
         </div>
         <span id="vademecum-count-badge" class="px-3 py-1 bg-surface-container text-primary font-semibold text-xs rounded-full border border-outline-variant self-start sm:self-auto">
@@ -549,12 +543,17 @@
         </p>
       </div>
       <div class="text-xs text-on-surface-variant">
-        Fuentes: <strong>AEPED Pediamécum</strong> • <strong>Fichas Técnicas Oficiales AEMPS</strong>
+        Base de Datos: <strong>Google Cloud Firestore</strong> • Fuentes: <strong>AEPED Pediamécum</strong>
       </div>
     </div>
   </footer>
 
+  <!-- LIBRERÍAS DE FIREBASE (COMPAT CDN OFICIAL) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
   <!-- ARCHIVOS JAVASCRIPT DE LA APLICACIÓN -->
+  <script src="firebase-config.js"></script>
   <script src="medicamentos.js"></script>
   <script src="app.js"></script>
 
