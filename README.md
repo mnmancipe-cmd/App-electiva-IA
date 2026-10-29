@@ -9,6 +9,16 @@ Calcular con rapidez y precisión la dosificación por peso (mg/kg) y la convers
 
 ---
 
+## ☁️ Base de Datos en la Nube (Firebase Firestore)
+- **Proyecto Firebase:** `dosis-ya-pediatria`
+- **Colección:** `medicamentos`
+- **Arquitectura Resiliente Híbrida:** 
+  - La aplicación consulta los medicamentos directamente desde Google Cloud Firestore.
+  - En caso de pérdida de conexión (por ejemplo, en sótanos de urgencias u hospitales sin señal), la aplicación activa de inmediato el respaldo de fichas técnicas locales para garantizar disponibilidad 24/7.
+  - Inicialización automática: Los 12 fármacos estándar se sincronizan con la nube sin necesidad de subirlos manualmente.
+
+---
+
 ## ✨ Funcionalidades (PRD)
 
 1. **Ingreso de peso y selección de medicamento**:
@@ -28,8 +38,8 @@ Calcular con rapidez y precisión la dosificación por peso (mg/kg) y la convers
 ---
 
 ## 🛡️ Políticas de Privacidad y Alcance
-- **Sin cuentas ni login**: Funciona de forma 100% local en el navegador del celular o computador.
-- **Sin recopilación de datos de pacientes**: Respeto total a la confidencialidad clínica.
+- **Sin cuentas ni login de pacientes**: Funciona sin solicitar datos personales.
+- **Sin recopilación de datos clínicos de pacientes**: Respeto total a la confidencialidad médica.
 - **Apoyo pedagógico**: No prescribe ni sustituye el criterio médico ni el vademécum oficial.
 
 ---
