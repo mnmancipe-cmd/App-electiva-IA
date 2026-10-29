@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html class="light" lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Dosis-Ya! - Calculadora Pediátrica para Enfermería</title>
+  
+  <!-- Iconos Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  
+  <!-- Fuentes: Inter & Plus Jakarta Sans -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#006872",
+            "primary-container": "#00838f",
+            "on-primary": "#ffffff",
+            "secondary": "#00639a",
+            "secondary-container": "#51b2fe",
+            "on-secondary-container": "#00436a",
+            "tertiary": "#006b49",
+            "error": "#ba1a1a",
+            "error-container": "#ffdad6",
+            "on-error-container": "#93000a",
+            "background": "#faf8ff",
+            "surface": "#faf8ff",
+            "on-surface": "#131b2e",
+            "on-surface-variant": "#3e494a",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#f2f3ff",
+            "surface-container": "#eaedff",
+            "surface-container-high": "#e2e7ff",
+            "outline": "#6e797b",
+            "outline-variant": "#bdc9ca"
+          },
+          fontFamily: {
+            sans: ["Inter", "sans-serif"],
+            heading: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-sans selection:bg-primary selection:text-on-primary">
+
+  <!-- BARRA DE NAVEGACIÓN SUPERIOR (RESPONSIVE) -->
+  <header class="bg-surface-container-lowest border-b border-outline-variant shadow-sm sticky top-0 z-50">
+    <div class="flex justify-between items-center w-full px-4 md:px-8 max-w-7xl mx-auto h-16">
+      
+      <!-- Marca y Logotipo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="cambiarPestana('calculadora')">
+        <div class="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-sm">
+          <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">medication</span>
+        </div>
+        <div>
+          <span class="text-xl font-heading font-bold text-primary tracking-tight block leading-none">Dosis-Ya!</span>
+          <span class="text-xs text-on-surface-variant hidden sm:block mt-0.5">Cálculo de dosis pediátricas para enfermería</span>
+        </div>
+      </div>
+
+      <!-- Enlaces de Navegación de Pestañas -->
+      <nav class="flex items-center gap-4 sm:gap-8">
+        <button 
+          id="tab-link-calculadora" 
+          onclick="cambiarPestana('calculadora')" 
+          class="border-b-2 border-primary text-primary font-semibold text-sm sm:text-base pb-1 transition-colors cursor-pointer"
+        >
+          Calculadora de Dosis
+        </button>
+        <button 
+          id="tab-link-vademecum" 
+          onclick="cambiarPestana('vademecum')" 
+          class="border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-semibold text-sm sm:text-base pb-1 transition-colors cursor-pointer"
+        >
+          Vademécum / Fichas
+        </button>
+      </nav>
+
+      <!-- Botón de Acción Directo -->
+      <div class="hidden sm:flex items-center">
+        <button 
+          onclick="cambiarPestana('calculadora'); window.scrollTo({top: 0, behavior: 'smooth'});" 
+          class="bg-primary hover:opacity-90 active:scale-95 text-on-primary font-semibold text-xs sm:text-sm px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+        >
+          <span class="material-symbols-outlined text-base">calculate</span>
+          <span>Nueva Dosis</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- BANNER DE AVISO CLÍNICO ACADÉMICO -->
+  <aside class="bg-surface-container-high border-b border-outline-variant text-on-surface py-2 px-4 text-center">
+    <div class="max-w-7xl mx-auto flex items-center justify-center gap-2 text-xs sm:text-sm">
+      <span class="material-symbols-outlined text-primary text-base">shield</span>
+      <p>
+        <strong class="font-semibold text-primary">Herramienta de verificación rápida y apoyo académico:</strong> 
+        No prescribe ni reemplaza criterio médico ni vademécum oficial.
+      </p>
+    </div>
+  </aside>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- SECCIÓN 1: CALCULADORA DE DOSIS (PANTALLA PRINCIPAL) -->
+    <div id="seccion-calculadora" class="flex flex-col gap-6">
+
+      <!-- Título de Sección -->
+      <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-outline-variant pb-4">
+        <div>
+          <div class="flex items-center gap-1 text-primary font-semibold text-xs uppercase tracking-wider mb-1">
+            <span class="material-symbols-outlined text-sm">vital_signs</span>
+            <span>Módulo de Cálculo Pediátrico</span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-heading font-bold text-on-surface tracking-tight">
+            Cálculo de Dosis por Peso
+          </h1>
+          <p class="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+            Ingresa el peso y medicamento para verificar la dosis por toma en mg y su volumen exacto en ml.
+          </p>
+        </div>
+      </div>
+
+      <!-- ALERTA CLÍNICA: DOSIS MÁXIMA SUPERADA (FUNCIÓN 4) -->
+      <div id="clinicalAlertBanner" class="hidden bg-red-50 border-2 border-red-500 rounded-xl p-4 sm:p-5 shadow-sm transition-all animate-pulse">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-2xl font-bold">warning</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-base sm:text-lg font-heading font-bold text-red-900 flex items-center gap-2">
+              <span>¡ALERTA DE SEGURIDAD: LÍMITE RECOMENDADO SUPERADO!</span>
+            </h3>
+            <p id="clinicalAlertText" class="text-sm text-red-800 mt-1 font-medium">
+              La dosis calculada supera el rango máximo establecido en ficha técnica.
+            </p>
+            <div class="mt-2.5 flex items-center gap-2 text-xs text-red-700 bg-red-100/70 p-2 rounded-lg border border-red-200">
+              <span class="material-symbols-outlined text-sm">verified_user</span>
+              <span>Revisa la orden médica o confirma con tu docente/médico tratante antes de preparar este medicamento.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRID DE DOS COLUMNAS (FORMULARIO Y RESULTADOS) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- COLUMNA IZQUIERDA: FORMULARIO DE ENTRADA (7 Cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-6">
+
+          <!-- Tarjeta de Parámetros -->
+          <div class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm p-5 sm:p-6 flex flex-col gap-5">
+            
+            <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+              <h2 class="text-lg font-heading font-bold text-on-surface flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">calculate</span>
+                <span>Parámetros de Cálculo</span>
+              </h2>
+              <span class="text-xs bg-surface-container-low text-primary px-2.5 py-1 rounded-full border border-outline-variant font-medium">
+                Cálculo instantáneo
+              </span>
+            </div>
+
+            <!-- PASO 1: PESO DEL PACIENTE -->
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <label class="font-semibold text-sm text-on-surface flex items-center gap-1.5" for="patient-weight">
+                  <span class="w-5 h-5 rounded-full bg-primary text-on-primary text-xs flex items-center justify-center font-bold">1</span>
+                  <span>Peso del Paciente Pediátrico</span>
+                </label>
+                <span class="text-xs text-on-surface-variant">Rango: 2.0 - 60.0 kg</span>
+              </div>
+              
+              <!-- Input numérico grande con etiqueta de KG -->
+              <div class="relative flex items-center rounded-xl border border-outline focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all bg-surface-container-lowest">
+                <input 
+                  class="w-full pl-4 pr-24 py-3 text-3xl font-heading font-bold text-on-surface tracking-tight border-none focus:ring-0 focus:outline-none placeholder-outline-variant" 
+                  id="patient-weight" 
+                  max="80" 
+                  min="1" 
+                  oninput="calcularDosis()" 
+                  placeholder="0.0" 
+                  step="0.1" 
+                  type="number" 
+                  value="12.5"
+                />
+                <div class="absolute right-3 flex items-center gap-1 bg-surface-container-low px-2.5 py-1 rounded-lg border border-outline-variant">
+                  <span class="font-bold text-sm text-primary">KG</span>
+                </div>
+              </div>
+
+              <!-- Botones Rápidos de Peso Pediátrico Típico -->
+              <div class="flex items-center gap-2 pt-1 flex-wrap">
+                <span class="text-xs text-on-surface-variant font-medium">Pesos rápidos:</span>
+                <button class="btn-quick-weight px-3 py-1 bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded text-on-surface font-medium text-xs transition-colors" data-weight="5" onclick="setWeight(5)" type="button">5 kg</button>
+                <button class="btn-quick-weight px-3 py-1 bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded text-on-surface font-medium text-xs transition-colors" data-weight="10" onclick="setWeight(10)" type="button">10 kg</button>
+                <button class="btn-quick-weight px-3 py-1 bg-primary text-on-primary border border-primary rounded font-semibold text-xs transition-colors" data-weight="12.5" onclick="setWeight(12.5)" type="button">12.5 kg</button>
+                <button class="btn-quick-weight px-3 py-1 bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded text-on-surface font-medium text-xs transition-colors" data-weight="15" onclick="setWeight(15)" type="button">15 kg</button>
+                <button class="btn-quick-weight px-3 py-1 bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded text-on-surface font-medium text-xs transition-colors" data-weight="20" onclick="setWeight(20)" type="button">20 kg</button>
+                <button class="btn-quick-weight px-3 py-1 bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded text-on-surface font-medium text-xs transition-colors" data-weight="25" onclick="setWeight(25)" type="button">25 kg</button>
+              </div>
+            </div>
+
+            <!-- PASO 2: SELECCIÓN DE MEDICAMENTO -->
+            <div class="flex flex-col gap-2 pt-3 border-t border-outline-variant">
+              <label class="font-semibold text-sm text-on-surface flex items-center justify-between" for="drug-select">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-primary text-on-primary text-xs flex items-center justify-center font-bold">2</span>
+                  <span>Seleccionar Medicamento de la Lista</span>
+                </span>
+                <button 
+                  onclick="cambiarPestana('vademecum')" 
+                  class="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                  type="button"
+                >
+                  <span class="material-symbols-outlined text-sm">menu_book</span>
+                  <span>Ver en Vademécum</span>
+                </button>
+              </label>
+
+              <!-- Dropdown de medicamentos -->
+              <div class="relative">
+                <select 
+                  class="w-full bg-surface-container-lowest border border-outline rounded-lg py-2.5 px-3.5 text-sm sm:text-base font-medium text-on-surface focus:ring-2 focus:ring-primary focus:border-primary transition-all cursor-pointer" 
+                  id="drug-select"
+                >
+                  <!-- Opciones cargadas dinámicamente desde medicamentos.js -->
+                </select>
+              </div>
+
+              <!-- Tarjeta de Especificación Activa -->
+              <div class="mt-2 p-3.5 bg-surface-container-low border border-outline-variant rounded-xl flex flex-col gap-2 text-xs">
+                <div class="flex items-center justify-between">
+                  <span class="text-on-surface-variant font-medium">Concentración de presentación:</span>
+                  <span class="font-bold text-sm text-primary" id="spec-concentration">--</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-outline-variant">
+                  <div>
+                    <span class="text-on-surface-variant block font-medium">Dosis estándar recomendada:</span>
+                    <span class="font-semibold text-on-surface text-sm" id="spec-standard">--</span>
+                  </div>
+                  <div>
+                    <span class="text-on-surface-variant block font-medium">Límite de seguridad:</span>
+                    <span class="font-semibold text-error text-sm" id="spec-max">--</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PASO 3: PARÁMETROS DE DOSIFICACIÓN Y FRECUENCIA -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-outline-variant">
+              <!-- Dosis Indicada en mg/kg -->
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-xs sm:text-sm text-on-surface flex items-center justify-between" for="dose-target">
+                  <span>Dosis Indicada:</span>
+                  <span class="text-xs font-bold text-primary" id="target-indicator">-- mg/kg</span>
+                </label>
+                <div class="relative flex items-center rounded-lg border border-outline focus-within:ring-2 focus-within:ring-primary focus-within:border-primary bg-surface-container-lowest">
+                  <input 
+                    class="w-full px-3 py-2 text-base font-bold text-on-surface border-none focus:ring-0 focus:outline-none" 
+                    id="dose-target" 
+                    oninput="calcularDosis()" 
+                    step="0.5" 
+                    type="number"
+                  />
+                  <span class="pr-3 text-xs text-on-surface-variant font-medium">mg/kg/toma</span>
+                </div>
+              </div>
+
+              <!-- Frecuencia Horaria -->
+              <div class="flex flex-col gap-1.5">
+                <label class="font-semibold text-xs sm:text-sm text-on-surface" for="frequency-select">
+                  Frecuencia de Toma:
+                </label>
+                <select 
+                  class="w-full bg-surface-container-lowest border border-outline rounded-lg py-2 px-3 text-sm font-medium text-on-surface focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer" 
+                  id="frequency-select" 
+                  onchange="calcularDosis()"
+                >
+                  <option value="6">Cada 6 horas (4 tomas / día)</option>
+                  <option value="8" selected>Cada 8 horas (3 tomas / día)</option>
+                  <option value="12">Cada 12 horas (2 tomas / día)</option>
+                  <option value="24">Cada 24 horas (Dosis única diaria)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="pt-2 flex items-center justify-between text-xs text-on-surface-variant">
+              <span class="flex items-center gap-1 text-tertiary font-medium">
+                <span class="material-symbols-outlined text-sm">lock</span>
+                <span>Cálculo local y privado (sin enviar datos de pacientes)</span>
+              </span>
+              <button class="hover:text-primary transition-colors underline font-medium cursor-pointer" onclick="resetForm()" type="button">
+                Restablecer
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Ficha Rápida del Medicamento Seleccionado -->
+          <article class="bg-surface-container-low rounded-xl border border-outline-variant p-4 flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">verified</span>
+                <span>Ficha Rápida de Referencia</span>
+              </span>
+              <span class="text-[11px] text-on-surface-variant" id="ref-source">Fuente: AEPED Pediamécum</span>
+            </div>
+            <div>
+              <p class="font-bold text-base text-on-surface" id="ref-name">--</p>
+              <p class="text-xs text-on-surface-variant mt-0.5 leading-relaxed" id="ref-indication">--</p>
+            </div>
+            <div class="pt-1">
+              <span id="ref-category-badge" class="px-2.5 py-0.5 bg-surface-container-lowest text-primary font-semibold text-xs rounded-full border border-outline-variant">
+                --
+              </span>
+            </div>
+          </article>
+
+        </section>
+
+        <!-- COLUMNA DERECHA: RESULTADOS CLÍNICOS (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col gap-6">
+
+          <!-- TARJETA PRINCIPAL DE RESULTADOS -->
+          <div id="resultsCard" class="bg-surface-container-lowest rounded-xl border-2 border-outline-variant shadow-md p-5 sm:p-6 flex flex-col gap-4 transition-all">
+            
+            <div class="flex items-center justify-between border-b border-outline-variant pb-3">
+              <h2 class="text-lg font-heading font-bold text-on-surface flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-primary">vaccines</span>
+                <span>Dosis Calculada</span>
+              </h2>
+              <span id="badgeStatus" class="font-semibold text-xs px-2.5 py-1 rounded-full flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-300">
+                <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                <span>Dosis Verificada</span>
+              </span>
+            </div>
+
+            <!-- TARJETAS GEMELAS: MG (Masa) y ML (Líquido) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              
+              <!-- Tarjeta Masa (mg) -->
+              <div class="bg-surface-container-low border border-outline-variant rounded-xl p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-on-surface-variant">
+                  <span class="text-xs font-bold uppercase tracking-wider">Masa Activa</span>
+                  <span class="material-symbols-outlined text-primary text-xl">scale</span>
+                </div>
+                <div class="my-2">
+                  <div class="flex items-baseline gap-1">
+                    <span id="resultMg" class="text-3xl sm:text-4xl font-heading font-extrabold text-on-surface tracking-tight leading-none">--</span>
+                    <span class="font-bold text-sm text-primary">mg</span>
+                  </div>
+                  <span class="text-xs text-on-surface-variant block mt-1">Por cada toma</span>
+                </div>
+                <div class="pt-2 border-t border-outline-variant text-xs text-on-surface-variant flex justify-between">
+                  <span>Día completo:</span>
+                  <strong id="resultMgDaily" class="text-on-surface">-- mg / día</strong>
+                </div>
+              </div>
+
+              <!-- Tarjeta Volumen (ml) -->
+              <div class="bg-surface-container-low border-2 border-primary rounded-xl p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-primary">
+                  <span class="text-xs font-bold uppercase tracking-wider">Volumen Líquido</span>
+                  <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">syringe</span>
+                </div>
+                <div class="my-2">
+                  <div class="flex items-baseline gap-1">
+                    <span id="resultMl" class="text-3xl sm:text-4xl font-heading font-extrabold text-primary tracking-tight leading-none">--</span>
+                    <span class="font-bold text-sm text-primary">ml</span>
+                  </div>
+                  <span class="text-xs text-on-surface font-semibold block mt-1">Volumen a jeringar</span>
+                </div>
+                <div class="pt-2 border-t border-outline-variant text-xs text-on-surface-variant flex justify-between">
+                  <span>Día completo:</span>
+                  <strong id="resultMlDaily" class="text-primary font-bold">-- ml / día</strong>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- GUÍA VISUAL CON JERINGA GRADUADA -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3.5 flex flex-col gap-2">
+              <div class="flex items-center justify-between text-xs font-medium">
+                <span class="text-on-surface-variant flex items-center gap-1">
+                  <span class="material-symbols-outlined text-sm text-primary">straighten</span>
+                  <span>Guía Visual en Jeringa Dosificadora Oral:</span>
+                </span>
+                <span id="gaugeLabel" class="font-bold text-primary">-- mL</span>
+              </div>
+              
+              <!-- Barra gráfica simuladora de jeringa -->
+              <div class="relative w-full h-7 bg-surface-container-high rounded-lg border border-outline flex items-center px-1 overflow-hidden">
+                <!-- Ticks de medición -->
+                <div class="absolute inset-0 flex justify-between items-center px-3 pointer-events-none opacity-40">
+                  <span class="h-4 w-px bg-on-surface"></span>
+                  <span class="h-2 w-px bg-on-surface"></span>
+                  <span class="h-4 w-px bg-on-surface"></span>
+                  <span class="h-2 w-px bg-on-surface"></span>
+                  <span class="h-4 w-px bg-on-surface"></span>
+                  <span class="h-2 w-px bg-on-surface"></span>
+                  <span class="h-4 w-px bg-on-surface"></span>
+                  <span class="h-2 w-px bg-on-surface"></span>
+                  <span class="h-4 w-px bg-on-surface"></span>
+                </div>
+                <!-- Barra de fluido -->
+                <div id="syringeFluidBar" class="h-5 bg-secondary-container rounded transition-all duration-300 flex items-center justify-end pr-2 text-on-secondary-container font-bold text-xs" style="width: 50%;">
+                  <span id="syringeFillText">-- ml</span>
+                </div>
+              </div>
+              <div class="flex justify-between text-[11px] font-semibold text-on-surface-variant px-1">
+                <span>0 ml</span>
+                <span>2.5 ml</span>
+                <span>5.0 ml</span>
+                <span>7.5 ml</span>
+                <span>10.0 ml</span>
+              </div>
+            </div>
+
+            <!-- DESGLOSE MATEMÁTICO PASO A PASO (TRANSPARENTE PARA EL APRENDIZAJE) -->
+            <div class="bg-surface-container-low border border-outline-variant rounded-xl p-4">
+              <h3 class="font-semibold text-xs sm:text-sm text-on-surface flex items-center gap-1.5 mb-2.5">
+                <span class="material-symbols-outlined text-primary text-base">account_tree</span>
+                <span>Desglose Matemático del Cálculo:</span>
+              </h3>
+              <div class="space-y-1.5 text-xs text-on-surface">
+                <div id="math-step-1" class="bg-surface-container-lowest p-2 rounded-lg border border-outline-variant">
+                  <strong>Paso 1:</strong> --
+                </div>
+                <div id="math-step-2" class="bg-surface-container-lowest p-2 rounded-lg border border-outline-variant">
+                  <strong>Paso 2:</strong> --
+                </div>
+                <div id="math-step-3" class="bg-surface-container-lowest p-2 rounded-lg border border-outline-variant">
+                  <strong>Paso 3:</strong> --
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+      </div>
+
+      <!-- SECCIÓN PEDAGÓGICA: REGLAS DE ORO EN ENFERMERÍA PEDIÁTRICA -->
+      <section class="mt-4 pt-6 border-t border-outline-variant">
+        <h2 class="text-lg font-heading font-bold text-on-surface mb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">checklist</span>
+          <span>Reglas de Oro en la Administración Pediátrica</span>
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1.5">
+            <span class="text-primary font-bold text-sm">1. Pesar Siempre al Paciente</span>
+            <p class="text-xs text-on-surface-variant leading-relaxed">
+              Nunca asumas el peso estimado por familiares. En pediatría, variaciones pequeñas alteran el margen terapéutico.
+            </p>
+          </div>
+          <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1.5">
+            <span class="text-primary font-bold text-sm">2. Revisar Intervalos Horarios</span>
+            <p class="text-xs text-on-surface-variant leading-relaxed">
+              Respeta los tiempos de aclaramiento renal y hepático del fármaco. No dupliques dosis sin orden médica.
+            </p>
+          </div>
+          <div class="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant shadow-sm flex flex-col gap-1.5">
+            <span class="text-primary font-bold text-sm">3. Usar Jeringas Dosificadoras Orales</span>
+            <p class="text-xs text-on-surface-variant leading-relaxed">
+              No usar cucharas caseras. Usa siempre jeringas graduadas en mililitros para dosificar con exactitud.
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- SECCIÓN 2: VADEMÉCUM Y FICHAS TÉCNICAS (FUNCIÓN 3) -->
+    <div id="seccion-vademecum" class="hidden flex flex-col gap-6">
+      
+      <!-- Encabezado de Vademécum con Barra de Búsqueda -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant pb-4">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-heading font-bold text-on-surface tracking-tight">
+            Vademécum Pediátrico de Bolsillo
+          </h1>
+          <p class="text-xs sm:text-sm text-on-surface-variant mt-0.5">
+            Consulta la dosis de referencia, uso clínico y fuente oficial de los medicamentos registrados.
+          </p>
+        </div>
+        <span id="vademecum-count-badge" class="px-3 py-1 bg-surface-container text-primary font-semibold text-xs rounded-full border border-outline-variant self-start sm:self-auto">
+          Cargando medicamentos...
+        </span>
+      </div>
+
+      <!-- Barra de Búsqueda Rápida -->
+      <div class="relative w-full">
+        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-xl">search</span>
+        <input 
+          id="vademecum-search" 
+          type="text" 
+          placeholder="Buscar por nombre (ej. Paracetamol, Ibuprofeno, Amoxicilina), categoría o indicación..." 
+          class="w-full pl-11 pr-4 py-3 bg-surface-container-lowest border border-outline rounded-xl text-sm sm:text-base font-medium text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary focus:border-primary shadow-sm"
+        />
+      </div>
+
+      <!-- Grid de Tarjetas de Medicamentos -->
+      <div id="vademecum-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Tarjetas renderizadas dinámicamente desde app.js -->
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- PIE DE PÁGINA (ACADÉMICO) -->
+  <footer class="bg-surface-container-low border-t border-outline-variant mt-12">
+    <div class="w-full py-6 px-4 md:px-8 max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
+      <div>
+        <span class="font-heading font-bold text-primary text-base">Dosis-Ya!</span>
+        <p class="text-xs text-on-surface-variant mt-0.5">
+          Herramienta de verificación rápida y apoyo académico para estudiantes de enfermería.
+        </p>
+      </div>
+      <div class="text-xs text-on-surface-variant">
+        Fuentes: <strong>AEPED Pediamécum</strong> • <strong>Fichas Técnicas Oficiales AEMPS</strong>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ARCHIVOS JAVASCRIPT DE LA APLICACIÓN -->
+  <script src="medicamentos.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>
