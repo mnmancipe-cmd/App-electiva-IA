@@ -1,58 +1,132 @@
 /**
- * Dosis-Ya! - Lógica de Cálculo y Vademécum Pediátrico
- * Código comentado didácticamente para estudiantes y docentes de enfermería.
+ * Dosis-Ya! - Lógica de Cálculo, Vademécum Pediátrico e Integración Firestore
+ * Código didáctico comentado para estudiantes y docentes de enfermería.
  */
 
-// Estado global de la aplicación
+// Lista activa de medicamentos (inicialmente cargada desde el archivo local como respaldo)
+let listaMedicamentosActiva = [...MEDICAMENTOS];
 let medicamentoActual = null;
 
 // Inicialización cuando carga la página
 document.addEventListener("DOMContentLoaded", () => {
+  // 1. Cargar interfaz inmediatamente con datos locales (para que la app responda al instante)
   inicializarSelectorMedicamentos();
   inicializarVademecum();
-  
-  // Seleccionar el primer medicamento por defecto (Paracetamol)
   seleccionarMedicamentoPorId("paracetamol");
-  
-  // Realizar el primer cálculo inicial
   calcularDosis();
+  
+  // 2. Intentar conectar a Firebase Firestore en segundo plano
+  conectarFirestore();
 });
+
+/**
+ * INTEGRACIÓN CON FIREBASE FIRESTORE
+ * Lee los medicamentos de la nube. Si la colección está vacía, la inicializa automáticamente.
+ */
+async function conectarFirestore() {
+  const badgeEstado = document.getElementById("firebase-status-badge");
+  
+  if (!db) {
+    actualizarBadgeFirebase("local", "📱 Modo Local (Sin conexión a Firebase)");
+    return;
+  }
+  
+  actualizarBadgeFirebase("cargando", "⏳ Conectando con Firestore...");
+  
+  try {
+    const snapshot = await db.collection("medicamentos").get();
+    
+    if (snapshot.empty) {
+      // Primera vez: La base de datos en la nube está vacía.
+      // Subimos automáticamente los 12 medicamentos oficiales para facilitarle la vida al estudiante.
+      console.log("Firestore vacío. Inicializando medicamentos en la nube...");
+      actualizarBadgeFirebase("cargando", "⏳ Inicializando 12 medicamentos en Firestore...");
+      
+      const batch = db.batch();
+      MEDICAMENTOS.forEach((med) => {
+        const docRef = db.collection("medicamentos").doc(med.id);
+        batch.set(docRef, med);
+      });
+      await batch.commit();
+      
+      listaMedicamentosActiva = [...MEDICAMENTOS];
+      actualizarBadgeFirebase("online", `☁️ Firestore Conectado (${listaMedicamentosActiva.length} fármacos sincronizados)`);
+    } else {
+      // Se cargaron los medicamentos directamente desde Firestore
+      const medicamentosNube = [];
+      snapshot.forEach((doc) => {
+        medicamentosNube.push(doc.data());
+      });
+      
+      listaMedicamentosActiva = medicamentosNube;
+      console.log(`Cargados ${listaMedicamentosActiva.length} medicamentos desde Firestore.`);
+      actualizarBadgeFirebase("online", `☁️ Firestore Conectado (${listaMedicamentosActiva.length} fármacos en la nube)`);
+    }
+    
+    // Refrescar selector y vademécum con los datos de Firestore
+    const medIdActual = medicamentoActual ? medicamentoActual.id : "paracetamol";
+    inicializarSelectorMedicamentos();
+    renderizarTarjetasVademecum(listaMedicamentosActiva);
+    seleccionarMedicamentoPorId(medIdActual);
+    
+  } catch (error) {
+    console.warn("Aviso al consultar Firestore (usando respaldo local):", error);
+    actualizarBadgeFirebase("local", "📱 Respaldo Local Activo (Firestore sin permisos o sin red)");
+  }
+}
+
+function actualizarBadgeFirebase(estado, mensaje) {
+  const badge = document.getElementById("firebase-status-badge");
+  if (!badge) return;
+  
+  badge.textContent = mensaje;
+  
+  if (estado === "online") {
+    badge.className = "px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 font-semibold text-xs rounded-full flex items-center gap-1.5 shadow-sm";
+  } else if (estado === "cargando") {
+    badge.className = "px-3 py-1 bg-amber-50 text-amber-800 border border-amber-300 font-semibold text-xs rounded-full flex items-center gap-1.5 shadow-sm";
+  } else {
+    badge.className = "px-3 py-1 bg-surface-container text-on-surface-variant border border-outline-variant font-semibold text-xs rounded-full flex items-center gap-1.5 shadow-sm";
+  }
+}
 
 /**
  * FUNCIÓN 1: Ingreso de peso y selección de medicamento
  */
-
-// Carga dinámica de la lista inicial de medicamentos en el <select>
 function inicializarSelectorMedicamentos() {
   const select = document.getElementById("drug-select");
   if (!select) return;
   
+  const valorAnterior = select.value;
   select.innerHTML = "";
-  MEDICAMENTOS.forEach((med, index) => {
+  
+  listaMedicamentosActiva.forEach((med, index) => {
     const option = document.createElement("option");
     option.value = med.id;
     option.textContent = `${med.nombre} (${med.formaFarmaceutica} ${med.concentracionTexto})`;
-    if (index === 0) option.selected = true;
+    if (valorAnterior ? med.id === valorAnterior : index === 0) {
+      option.selected = true;
+    }
     select.appendChild(option);
   });
   
-  select.addEventListener("change", (e) => {
+  select.onchange = (e) => {
     seleccionarMedicamentoPorId(e.target.value);
-  });
+  };
 }
 
-// Cambia el medicamento activo y actualiza las especificaciones en pantalla
 function seleccionarMedicamentoPorId(id) {
-  const med = MEDICAMENTOS.find((m) => m.id === id) || MEDICAMENTOS[0];
+  const med = listaMedicamentosActiva.find((m) => m.id === id) || listaMedicamentosActiva[0];
+  if (!med) return;
   medicamentoActual = med;
   
-  // Sincronizar el select
+  // Sincronizar select
   const select = document.getElementById("drug-select");
   if (select && select.value !== med.id) {
     select.value = med.id;
   }
   
-  // 1. Actualizar tarjeta de especificación del fármaco
+  // 1. Tarjeta de especificación
   const elConcentracion = document.getElementById("spec-concentration");
   const elEstandar = document.getElementById("spec-standard");
   const elMax = document.getElementById("spec-max");
@@ -67,7 +141,7 @@ function seleccionarMedicamentoPorId(id) {
     elMax.textContent = `Máx. ${med.dosisMaxMgKg} mg/kg/toma (Tope: ${med.dosisMaximaPorTomaMg} mg/toma)`;
   }
   
-  // 2. Actualizar campo de dosis por toma indicada
+  // 2. Campo de dosis indicada por defecto
   const inputDoseTarget = document.getElementById("dose-target");
   const labelIndicator = document.getElementById("target-indicator");
   if (inputDoseTarget) {
@@ -79,13 +153,13 @@ function seleccionarMedicamentoPorId(id) {
     labelIndicator.textContent = `${med.dosisPorDefectoMgKg} mg/kg`;
   }
   
-  // 3. Actualizar selector de frecuencia sugerida
+  // 3. Frecuencia horaria
   const selectFrecuencia = document.getElementById("frequency-select");
   if (selectFrecuencia && med.frecuenciaHoras) {
     selectFrecuencia.value = String(med.frecuenciaHoras);
   }
   
-  // 4. Actualizar ficha rápida inferior
+  // 4. Ficha rápida de referencia inferior
   const refName = document.getElementById("ref-name");
   const refIndication = document.getElementById("ref-indication");
   const refSource = document.getElementById("ref-source");
@@ -96,18 +170,15 @@ function seleccionarMedicamentoPorId(id) {
   if (refSource) refSource.textContent = `Fuente: ${med.fuenteOficial}`;
   if (refBadge) refBadge.textContent = med.categoria;
   
-  // Recalcular con el nuevo medicamento
   calcularDosis();
 }
 
-// Botones rápidos de peso estándar (5kg, 10kg, 12.5kg, 15kg, 20kg, 25kg)
 function setWeight(peso) {
   const inputPeso = document.getElementById("patient-weight");
   if (!inputPeso) return;
   
   inputPeso.value = peso;
   
-  // Actualizar estilo visual activo de los botones rápidos
   const botonesRapidos = document.querySelectorAll(".btn-quick-weight");
   botonesRapidos.forEach((btn) => {
     const val = parseFloat(btn.dataset.weight);
@@ -140,26 +211,23 @@ function calcularDosis() {
     labelIndicator.textContent = `${dosisMgKg} mg/kg`;
   }
   
-  // Si no hay peso válido, mostramos guiones
   if (pesoKg <= 0 || dosisMgKg <= 0) {
     mostrarResultadosEnCero();
     return;
   }
   
-  // CÁLCULOS MATEMÁTICOS CLÍNICOS:
   // 1. Dosis en masa (mg) por cada toma
   const dosisMgPorToma = pesoKg * dosisMgKg;
   
-  // 2. Número de tomas al día y total diario
+  // 2. Pauta diaria
   const tomasAlDia = 24 / frecuenciaHoras;
   const dosisMgDiaria = dosisMgPorToma * tomasAlDia;
   
-  // 3. Conversión a volumen líquido (ml) usando la concentración del fármaco
-  // Fórmula: ml = mg_dosis / mg_por_ml
+  // 3. Volumen líquido en ml = mg_dosis / mg_por_ml
   const dosisMlPorToma = dosisMgPorToma / medicamentoActual.mgPorMl;
   const dosisMlDiaria = dosisMlPorToma * tomasAlDia;
   
-  // FUNCIÓN 4: COMPROBACIÓN DE LÍMITES DE SEGURIDAD (ALERTA TOXICOLÓGICA)
+  // FUNCIÓN 4: Comprobación de límites toxicológicos
   const superaDosisMaxToma = dosisMgPorToma > medicamentoActual.dosisMaximaPorTomaMg;
   const superaDosisMaxKg = dosisMgKg > medicamentoActual.dosisMaxMgKg;
   const dosisMaximaDiariaPermitida = pesoKg * medicamentoActual.dosisMaximaDiariaMgKg;
@@ -167,13 +235,12 @@ function calcularDosis() {
   
   const hayPeligro = superaDosisMaxToma || superaDosisMaxKg || superaDosisMaxDiaria;
   
-  // Renderizar valores en la tarjeta de resultados
+  // Renderizar valores
   const elResultMg = document.getElementById("resultMg");
   const elResultMgDaily = document.getElementById("resultMgDaily");
   const elResultMl = document.getElementById("resultMl");
   const elResultMlDaily = document.getElementById("resultMlDaily");
   
-  // Formatear decimales según magnitud (evitar cifras largas)
   const textoMgToma = dosisMgPorToma >= 10 ? Math.round(dosisMgPorToma) : dosisMgPorToma.toFixed(1);
   const textoMgDiario = dosisMgDiaria >= 10 ? Math.round(dosisMgDiaria) : dosisMgDiaria.toFixed(1);
   const textoMlToma = dosisMlPorToma >= 10 ? dosisMlPorToma.toFixed(1) : dosisMlPorToma.toFixed(2);
@@ -184,10 +251,8 @@ function calcularDosis() {
   if (elResultMl) elResultMl.textContent = textoMlToma;
   if (elResultMlDaily) elResultMlDaily.textContent = `${textoMlDiario} ml / día`;
   
-  // Actualizar medidor visual de jeringa (escala 0 a 10 ml)
   actualizarJeringaVisual(dosisMlPorToma);
   
-  // Actualizar desglose matemático paso a paso
   actualizarDesgloseMatematico({
     pesoKg,
     dosisMgKg,
@@ -199,7 +264,6 @@ function calcularDosis() {
     frecuenciaHoras
   });
   
-  // Actualizar componente visual de alerta (Función 4)
   actualizarEstadoAlerta({
     hayPeligro,
     superaDosisMaxToma,
@@ -212,7 +276,6 @@ function calcularDosis() {
   });
 }
 
-// Actualiza la jeringa visual milimetrada
 function actualizarJeringaVisual(ml) {
   const bar = document.getElementById("syringeFluidBar");
   const fillText = document.getElementById("syringeFillText");
@@ -220,7 +283,6 @@ function actualizarJeringaVisual(ml) {
   
   if (!bar) return;
   
-  // Porcentaje basado en jeringa estándar de 10 ml
   const maxCapacidadMl = 10;
   const porcentaje = Math.min(100, Math.max(5, (ml / maxCapacidadMl) * 100));
   
@@ -237,7 +299,6 @@ function actualizarJeringaVisual(ml) {
   }
 }
 
-// Muestra la explicación paso a paso de las cuentas
 function actualizarDesgloseMatematico(datos) {
   const elFormula1 = document.getElementById("math-step-1");
   const elFormula2 = document.getElementById("math-step-2");
@@ -254,7 +315,6 @@ function actualizarDesgloseMatematico(datos) {
   }
 }
 
-// Control visual de la alerta de dosis máxima (Función 4)
 function actualizarEstadoAlerta(alerta) {
   const alertContainer = document.getElementById("clinicalAlertBanner");
   const badgeStatus = document.getElementById("badgeStatus");
@@ -264,7 +324,6 @@ function actualizarEstadoAlerta(alerta) {
   if (!alertContainer || !badgeStatus) return;
   
   if (alerta.hayPeligro) {
-    // Mostrar Alerta Roja
     alertContainer.classList.remove("hidden");
     
     let motivo = "La dosis calculada supera el rango de seguridad recomendado.";
@@ -276,7 +335,6 @@ function actualizarEstadoAlerta(alerta) {
     
     if (alertText) alertText.textContent = motivo;
     
-    // Cambiar etiqueta de estado a peligro
     badgeStatus.className = "font-semibold text-xs px-2.5 py-1 rounded-full flex items-center gap-1 bg-red-100 text-red-800 border border-red-300";
     badgeStatus.innerHTML = `<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">warning</span> Dosis Máxima Superada`;
     
@@ -285,10 +343,8 @@ function actualizarEstadoAlerta(alerta) {
       resultsCard.classList.add("border-red-400", "ring-2", "ring-red-200");
     }
   } else {
-    // Ocultar Alerta
     alertContainer.classList.add("hidden");
     
-    // Etiqueta de estado en verde seguro
     badgeStatus.className = "font-semibold text-xs px-2.5 py-1 rounded-full flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-300";
     badgeStatus.innerHTML = `<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span> Dosis Verificada Segura`;
     
@@ -316,14 +372,12 @@ function inicializarVademecum() {
   
   if (!container) return;
   
-  // Renderizar las tarjetas iniciales
-  renderizarTarjetasVademecum(MEDICAMENTOS);
+  renderizarTarjetasVademecum(listaMedicamentosActiva);
   
-  // Evento de búsqueda por texto (filtra por nombre, categoría o indicación)
   if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
+    searchInput.oninput = (e) => {
       const termino = e.target.value.toLowerCase().trim();
-      const filtrados = MEDICAMENTOS.filter((med) => {
+      const filtrados = listaMedicamentosActiva.filter((med) => {
         return (
           med.nombre.toLowerCase().includes(termino) ||
           med.categoria.toLowerCase().includes(termino) ||
@@ -332,7 +386,7 @@ function inicializarVademecum() {
         );
       });
       renderizarTarjetasVademecum(filtrados);
-    });
+    };
   }
 }
 
@@ -409,14 +463,12 @@ function renderizarTarjetasVademecum(lista) {
   });
 }
 
-// Al hacer clic en "Calcular dosis con este fármaco" desde una ficha del vademécum
 function seleccionarDesdeVademecum(medId) {
   cambiarPestana("calculadora");
   seleccionarMedicamentoPorId(medId);
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// Navegación entre pestañas (Calculadora vs Vademécum)
 function cambiarPestana(pestana) {
   const seccionCalc = document.getElementById("seccion-calculadora");
   const seccionVademecum = document.getElementById("seccion-vademecum");
@@ -444,7 +496,6 @@ function cambiarPestana(pestana) {
   }
 }
 
-// Restablecer valores iniciales
 function resetForm() {
   const inputPeso = document.getElementById("patient-weight");
   if (inputPeso) inputPeso.value = "12.5";
