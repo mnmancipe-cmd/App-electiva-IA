@@ -9,7 +9,7 @@ let medicamentoActual = null;
 
 // Inicialización cuando carga la página
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. Cargar interfaz inmediatamente con datos locales (para que la app responda al instante)
+  // 1. Cargar interfaz con datos locales iniciales
   inicializarSelectorMedicamentos();
   inicializarVademecum();
   seleccionarMedicamentoPorId("paracetamol");
@@ -37,8 +37,6 @@ async function conectarFirestore() {
     const snapshot = await db.collection("medicamentos").get();
     
     if (snapshot.empty) {
-      // Primera vez: La base de datos en la nube está vacía.
-      // Subimos automáticamente los 12 medicamentos oficiales para facilitarle la vida al estudiante.
       console.log("Firestore vacío. Inicializando medicamentos en la nube...");
       actualizarBadgeFirebase("cargando", "⏳ Inicializando 12 medicamentos en Firestore...");
       
@@ -52,7 +50,6 @@ async function conectarFirestore() {
       listaMedicamentosActiva = [...MEDICAMENTOS];
       actualizarBadgeFirebase("online", `☁️ Firestore Conectado (${listaMedicamentosActiva.length} fármacos sincronizados)`);
     } else {
-      // Se cargaron los medicamentos directamente desde Firestore
       const medicamentosNube = [];
       snapshot.forEach((doc) => {
         medicamentosNube.push(doc.data());
@@ -63,11 +60,13 @@ async function conectarFirestore() {
       actualizarBadgeFirebase("online", `☁️ Firestore Conectado (${listaMedicamentosActiva.length} fármacos en la nube)`);
     }
     
-    // Refrescar selector y vademécum con los datos de Firestore
-    const medIdActual = medicamentoActual ? medicamentoActual.id : "paracetamol";
+    // Refrescar selector y vademécum preservando selección actual si existe
+    const medIdActual = medicamentoActual ? medicamentoActual.id : null;
     inicializarSelectorMedicamentos();
     renderizarTarjetasVademecum(listaMedicamentosActiva);
-    seleccionarMedicamentoPorId(medIdActual);
+    if (medIdActual) {
+      seleccionarMedicamentoPorId(medIdActual);
+    }
     
   } catch (error) {
     console.warn("Aviso al consultar Firestore (usando respaldo local):", error);
@@ -98,25 +97,36 @@ function inicializarSelectorMedicamentos() {
   if (!select) return;
   
   const valorAnterior = select.value;
-  select.innerHTML = "";
+  select.innerHTML = '<option value="" disabled selected>Seleccione un medicamento</option>';
   
-  listaMedicamentosActiva.forEach((med, index) => {
+  listaMedicamentosActiva.forEach((med) => {
     const option = document.createElement("option");
     option.value = med.id;
     option.textContent = `${med.nombre} (${med.formaFarmaceutica} ${med.concentracionTexto})`;
-    if (valorAnterior ? med.id === valorAnterior : index === 0) {
+    if (valorAnterior && med.id === valorAnterior) {
       option.selected = true;
     }
     select.appendChild(option);
   });
   
   select.onchange = (e) => {
-    seleccionarMedicamentoPorId(e.target.value);
+    if (e.target.value) {
+      seleccionarMedicamentoPorId(e.target.value);
+    } else {
+      limpiarEspecificacionesMedicamento();
+      calcularDosis();
+    }
   };
 }
 
 function seleccionarMedicamentoPorId(id) {
-  const med = listaMedicamentosActiva.find((m) => m.id === id) || listaMedicamentosActiva[0];
+  if (!id) {
+    limpiarEspecificacionesMedicamento();
+    calcularDosis();
+    return;
+  }
+  
+  const med = listaMedicamentosActiva.find((m) => m.id === id);
   if (!med) return;
   medicamentoActual = med;
   
@@ -153,7 +163,7 @@ function seleccionarMedicamentoPorId(id) {
     labelIndicator.textContent = `${med.dosisPorDefectoMgKg} mg/kg`;
   }
   
-  // 3. Frecuencia horaria
+  // 3. Frecuencia horaria sugerida
   const selectFrecuencia = document.getElementById("frequency-select");
   if (selectFrecuencia && med.frecuenciaHoras) {
     selectFrecuencia.value = String(med.frecuenciaHoras);
@@ -171,6 +181,28 @@ function seleccionarMedicamentoPorId(id) {
   if (refBadge) refBadge.textContent = med.categoria;
   
   calcularDosis();
+}
+
+function limpiarEspecificacionesMedicamento() {
+  medicamentoActual = null;
+  const select = document.getElementById("drug-select");
+  if (select) select.value = "";
+  
+  const elConcentracion = document.getElementById("spec-concentration");
+  const elEstandar = document.getElementById("spec-standard");
+  const elMax = document.getElementById("spec-max");
+  if (elConcentracion) elConcentracion.textContent = "--";
+  if (elEstandar) elEstandar.textContent = "--";
+  if (elMax) elMax.textContent = "--";
+  
+  const refName = document.getElementById("ref-name");
+  const refIndication = document.getElementById("ref-indication");
+  const refSource = document.getElementById("ref-source");
+  const refBadge = document.getElementById("ref-category-badge");
+  if (refName) refName.textContent = "--";
+  if (refIndication) refIndication.textContent = "--";
+  if (refSource) refSource.textContent = "Fuente: AEPED Pediamécum / Fichas Oficiales";
+  if (refBadge) refBadge.textContent = "--";
 }
 
 function setWeight(peso) {
@@ -196,8 +228,6 @@ function setWeight(peso) {
  * FUNCIÓN 2 y 4: Cálculo de dosis en mg y ml + Alerta de dosis máxima
  */
 function calcularDosis() {
-  if (!medicamentoActual) return;
-  
   const inputPeso = document.getElementById("patient-weight");
   const inputDoseTarget = document.getElementById("dose-target");
   const selectFrecuencia = document.getElementById("frequency-select");
@@ -205,13 +235,15 @@ function calcularDosis() {
   
   const pesoKg = parseFloat(inputPeso?.value) || 0;
   const dosisMgKg = parseFloat(inputDoseTarget?.value) || 0;
-  const frecuenciaHoras = parseInt(selectFrecuencia?.value) || 8;
+  const frecuenciaVal = selectFrecuencia?.value;
+  const frecuenciaHoras = parseInt(frecuenciaVal) || 0;
   
   if (labelIndicator) {
-    labelIndicator.textContent = `${dosisMgKg} mg/kg`;
+    labelIndicator.textContent = dosisMgKg > 0 ? `${dosisMgKg} mg/kg` : "-- mg/kg";
   }
   
-  if (pesoKg <= 0 || dosisMgKg <= 0) {
+  // Si falta el medicamento, el peso, la dosis indicada o la frecuencia, se limpian los resultados
+  if (!medicamentoActual || pesoKg <= 0 || dosisMgKg <= 0 || frecuenciaHoras <= 0) {
     mostrarResultadosEnCero();
     return;
   }
@@ -355,12 +387,48 @@ function actualizarEstadoAlerta(alerta) {
   }
 }
 
+// Limpia resultados y restablece mensajes informativos sin alterar la capacidad de alerta futura
 function mostrarResultadosEnCero() {
-  document.getElementById("resultMg").textContent = "--";
-  document.getElementById("resultMgDaily").textContent = "-- mg / día";
-  document.getElementById("resultMl").textContent = "--";
-  document.getElementById("resultMlDaily").textContent = "-- ml / día";
-  actualizarEstadoAlerta({ hayPeligro: false });
+  const elResultMg = document.getElementById("resultMg");
+  const elResultMgDaily = document.getElementById("resultMgDaily");
+  const elResultMl = document.getElementById("resultMl");
+  const elResultMlDaily = document.getElementById("resultMlDaily");
+  const gaugeLabel = document.getElementById("gaugeLabel");
+  const bar = document.getElementById("syringeFluidBar");
+  const fillText = document.getElementById("syringeFillText");
+  const badgeStatus = document.getElementById("badgeStatus");
+  const alertContainer = document.getElementById("clinicalAlertBanner");
+  const resultsCard = document.getElementById("resultsCard");
+  
+  if (elResultMg) elResultMg.textContent = "--";
+  if (elResultMgDaily) elResultMgDaily.textContent = "-- mg / día";
+  if (elResultMl) elResultMl.textContent = "--";
+  if (elResultMlDaily) elResultMlDaily.textContent = "-- ml / día";
+  if (gaugeLabel) {
+    gaugeLabel.textContent = "-- mL";
+    gaugeLabel.className = "font-bold text-on-surface-variant";
+  }
+  if (bar) bar.style.width = "0%";
+  if (fillText) fillText.textContent = "0 ml";
+  
+  // Limpieza didáctica del desglose matemático
+  const elFormula1 = document.getElementById("math-step-1");
+  const elFormula2 = document.getElementById("math-step-2");
+  const elFormula3 = document.getElementById("math-step-3");
+  if (elFormula1) elFormula1.innerHTML = "<strong>Paso 1:</strong> Ingrese el peso y seleccione un medicamento.";
+  if (elFormula2) elFormula2.innerHTML = "<strong>Paso 2:</strong> Ingrese la dosis y frecuencia indicadas.";
+  if (elFormula3) elFormula3.innerHTML = "<strong>Paso 3:</strong> El cálculo y volumen aparecerán aquí.";
+  
+  // Ocultar alerta anterior y regresar badge a estado neutral
+  if (alertContainer) alertContainer.classList.add("hidden");
+  if (resultsCard) {
+    resultsCard.classList.remove("border-red-400", "ring-2", "ring-red-200");
+    resultsCard.classList.add("border-outline-variant");
+  }
+  if (badgeStatus) {
+    badgeStatus.className = "font-semibold text-xs px-2.5 py-1 rounded-full flex items-center gap-1 bg-surface-container text-on-surface-variant border border-outline-variant";
+    badgeStatus.innerHTML = `<span class="material-symbols-outlined text-sm">hourglass_empty</span><span>En espera de parámetros</span>`;
+  }
 }
 
 /**
@@ -496,9 +564,39 @@ function cambiarPestana(pestana) {
   }
 }
 
+/**
+ * MODIFICACIÓN SOLICITADA: Ajustes al Botón «Restablecer»
+ * 1. Peso del paciente: queda vacío.
+ * 2. Medicamento: muestra «Seleccione un medicamento».
+ * 3. Dosis indicada: queda vacía.
+ * 4. Frecuencia de toma: muestra «Seleccione la frecuencia».
+ * 5. Resultados: desaparecen los cálculos anteriores en mg y ml.
+ * 6. Alertas: se limpian los mensajes de alerta anteriores y se conservan para los próximos cálculos.
+ */
 function resetForm() {
+  // 1. Peso del paciente: queda vacío
   const inputPeso = document.getElementById("patient-weight");
-  if (inputPeso) inputPeso.value = "12.5";
-  setWeight(12.5);
-  seleccionarMedicamentoPorId("paracetamol");
+  if (inputPeso) inputPeso.value = "";
+  
+  // Desmarcar todos los botones rápidos de peso
+  const botonesRapidos = document.querySelectorAll(".btn-quick-weight");
+  botonesRapidos.forEach((btn) => {
+    btn.className = "btn-quick-weight px-3 py-1 bg-surface-container-low hover:bg-surface-container border border-outline-variant rounded text-on-surface font-medium text-xs transition-colors";
+  });
+  
+  // 2. Medicamento: muestra «Seleccione un medicamento»
+  limpiarEspecificacionesMedicamento();
+  
+  // 3. Dosis indicada: queda vacía
+  const inputDoseTarget = document.getElementById("dose-target");
+  const labelIndicator = document.getElementById("target-indicator");
+  if (inputDoseTarget) inputDoseTarget.value = "";
+  if (labelIndicator) labelIndicator.textContent = "-- mg/kg";
+  
+  // 4. Frecuencia de toma: muestra «Seleccione la frecuencia»
+  const selectFrecuencia = document.getElementById("frequency-select");
+  if (selectFrecuencia) selectFrecuencia.value = "";
+  
+  // 5 y 6. Resultados y Alertas: se limpian resultados y alertas anteriores
+  mostrarResultadosEnCero();
 }
